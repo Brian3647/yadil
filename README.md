@@ -28,7 +28,7 @@ it's that simple.
 
 ## Why?
 
-You might (not) noticed, but `yadil` works perfectly without spaces, newlines, or any other whitespace form. That's intentional. `yadil` is meant to be easy to read by a machine and, if necessary, by a human. It's meant to reduce the amount of bytes needed to pass data between server and client (which, honestly, JSON does a poor job at) and be easy to parse & maintain due to [short type](#shorter-data-types)d variables (which, guess what, JSON does a poor job at). It's easy to parse, and easy to generate.
+You might (not) noticed, but `yadil` works perfectly without spaces, newlines, or any other whitespace form. That's intentional. `yadil` is meant to be easy to read by a machine and, if necessary, by a human. It's meant to reduce the amount of bytes needed to pass data between server and client and be easy to parse & maintain due to [short type](#shorter-data-types)d variables (which, guess what, JSON does a poor job at). It's easy to parse, and easy to generate.
 
 ## Shorter data types
 
@@ -49,6 +49,12 @@ you can also use `t` for true and `f` for false:
 
 ```py
 b@my_bool=t;
+```
+
+and replace `map` and `end` for `m` and `e`:
+
+```py
+m@headers:s@My-Header="abc";s@hello="world";e;
 ```
 
 ## Roadmap
