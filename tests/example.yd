@@ -1,0 +1,16 @@
+Y.1;
+# This is a comment #
+# \# works #
+
+str @my_string = "Hello, world!"; # string #
+uint @my_uint = 42; # unsigned integer #
+sint @my_sint = -42; # signed integer #
+float @my_float = 3.14159; # floating point number #
+bool @my_bool = true; # boolean #
+list @my_list = [1, 2, 3]; # lists #
+bytes @my_bytes = [1A, 2F, 03]; # bytes: equivalent to 0x1A, 0x2F, 03 #
+
+map @my_map: # maps #
+    str @key "value";
+    uint @key2 42;
+end;

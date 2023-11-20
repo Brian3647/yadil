@@ -1,0 +1,13 @@
+[package]
+name = "yadil"
+version = "0.1.0"
+edition = "2021"
+description = "Yet another data interchange language™"
+keywords = ["data", "web"]
+license = "MIT"
+repository = "https://github.com/Brian3647/yadil"
+readme = "README.md"
+include = ["src/**.rs", "Cargo.toml", "README.md", "LICENSE"]
+authors = ["Brian3647 <victoris3647@gmail.com>"]
+
+[dependencies]
