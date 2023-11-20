@@ -1,5 +1,7 @@
 # YADIL: Yet another data interchange language
 
+> [!WARNING] there's no working version of yadil yet. A parser is being built for rust.
+
 Yep, it's exactly what it sounds.
 
 ```py
