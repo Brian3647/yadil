@@ -1,6 +1,7 @@
 # YADIL: Yet another data interchange language
 
-> [!WARNING] there's no working version of yadil yet. A parser is being built for rust.
+> [!WARNING]
+> There's no working version of yadil yet. A parser is being built for rust.
 
 Yep, it's exactly what it sounds.
 
@@ -9,13 +10,13 @@ Y.1;
 # This is a comment #
 # \# works #
 
-str @my_string = "Hello, world!"; # string #
-uint @my_uint = 42; # unsigned integer #
-sint @my_sint = -42; # signed integer #
+str @a_string = "Hello, world!"; # string #
+uint @some_uint = 42; # unsigned integer #
+sint @i_hate_sints = -42; # signed integer #
 float @my_float = 3.14159; # floating point number #
-bool @my_bool = true; # boolean #
-list @my_list = [1, 2, 3]; # lists #
-bytes @my_bytes = [1A, 2F, 03]; # bytes: equivalent to 0x1A, 0x2F, 03 #
+bool @is_it_ok = true; # boolean #
+list @lists_work = [1, 2, 3]; # lists #
+bytes @weird_bytes = [1A, 2F, 03]; # bytes: equivalent to 0x1A, 0x2F, 03 #
 
 map @my_map: # maps #
     str @key "value";
@@ -49,3 +50,11 @@ you can also use `t` for true and `f` for false:
 ```py
 b@my_bool=t;
 ```
+
+## Roadmap
+
+- [ ] Rust parser
+- [ ] Integration with `serde`
+- [ ] Implementation in JavaScript (for both browser & nodejs/bun/deno)
+- [ ] Language server (which shouldn't be hard)
+- [ ] Extensions for ides & editors
