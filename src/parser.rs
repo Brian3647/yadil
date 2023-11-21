@@ -6,27 +6,27 @@ use crate::{Error, ErrorKind, Result};
 
 /// Any valid value.
 #[derive(Debug, Clone)]
-pub enum Value<'a> {
-	String(&'a str),
+pub enum Value {
+	String(String),
 	Unsigned(usize),
 	Signed(isize),
 	Byte(u8),
 	Float(f64),
 	Bool(bool),
 	Empty,
-	List(Vec<Expr<'a>>),
-	Map(HashMap<Value<'a>, Expr<'a>>),
+	List(Vec<Expr>),
+	Map(HashMap<Value, Expr>),
 }
 
 #[derive(Debug, Clone)]
-pub enum Expr<'a> {
-	Assign(&'a [u8], Value<'a>),
+pub enum Expr {
+	Assign(Vec<u8>, Value),
 	Empty,
 }
 
 #[derive(Debug, Clone)]
-pub struct Message<'a> {
-	pub body: Vec<Expr<'a>>,
+pub struct Message {
+	pub body: Vec<Expr>,
 }
 
 pub struct Parser<'a> {
@@ -34,18 +34,23 @@ pub struct Parser<'a> {
 	pub index: usize,
 }
 
-impl<'a> Parser<'a> {
+impl<'src> Parser<'src> {
 	/// The start bytes of a data type.
 	///
 	/// Contains the following: s (string or sint), u (unsigned), i (signed),
 	/// f (float), b (byte), l (list), m (map), x (byte list)
 	pub const DATA_TYPE_START_BYTES: [u8; 8] = [b's', b'u', b'i', b'f', b'b', b'l', b'm', b'x'];
 
-	pub fn new(input: &[u8]) -> Parser {
+	pub const ASCII_NINE: u8 = b'9';
+	pub const ASCII_ZERO: u8 = b'0';
+
+	pub fn new(input: &'src [u8]) -> Parser {
 		Parser { input, index: 0 }
 	}
 
-	pub fn parse(&mut self) -> Result<Message<'a>> {
+	pub fn parse(&mut self) -> Result<Message> {
+		let len = self.input.len();
+
 		if self.next().is_none() {
 			return Ok(Message {
 				body: vec![Expr::Empty],
@@ -53,8 +58,10 @@ impl<'a> Parser<'a> {
 		}
 
 		let mut body = vec![];
+		let mut index = self.index;
 
-		for byte in self {
+		while index < len {
+			let byte = self.input[index];
 			match byte {
 				0 => break,                        // End of message (null byte)
 				b' ' | b'\n' | b'\r' | b'\t' => {} // Initial whitespaces & newlines are ignored
@@ -64,15 +71,16 @@ impl<'a> Parser<'a> {
 				}
 				_ => return Err(self.error(ErrorKind::UnexpectedChar, "Expected expression")),
 			}
+			index += 1;
 		}
 
 		Ok(Message { body })
 	}
 
-	fn parse_expr(&mut self, start: u8) -> Result<Expr<'a>> {
+	fn parse_expr(&mut self, start: u8) -> Result<Expr> {
 		let mut data_type = vec![start];
 
-		while let Some(next) = self.next() {
+		for next in self.by_ref() {
 			if next == b'@' {
 				break;
 			}
@@ -92,63 +100,67 @@ impl<'a> Parser<'a> {
 		}
 	}
 
-	fn parse_string(&mut self) -> Result<Expr<'a>> {
-		self.parse_custom_type(|input| Ok(Value::String(self.to_utf8(input)?)))
+	fn parse_string(&mut self) -> Result<Expr> {
+		let (ident, input) = self.parse_custom_type()?;
+		let input = self.to_utf8(input)?;
+		Ok(Expr::Assign(ident, Value::String(input)))
 	}
 
-	fn parse_unsigned(&mut self) -> Result<Expr<'a>> {
-		self.parse_custom_type(|input| {
-			let str_input = self.to_utf8(input)?;
-			str_input
-				.parse::<usize>()
-				.map(Value::Unsigned)
-				.map_err(|_| self.error(ErrorKind::WrongValue, "Invalid unsigned integer"))
-		})
+	fn parse_unsigned(&mut self) -> Result<Expr> {
+		let (ident, input) = self.parse_custom_type()?;
+		let mut total: usize = 0;
+
+		for byte in input.iter() {
+			if !(Self::ASCII_ZERO..=Self::ASCII_NINE).contains(byte) {
+				return Err(self.error(ErrorKind::WrongValue, "Invalid unsigned value"));
+			}
+
+			total += (byte - Self::ASCII_ZERO) as usize;
+		}
+
+		Ok(Expr::Assign(ident, Value::Unsigned(total)))
 	}
 
-	fn parse_signed(&mut self) -> Result<Expr<'a>> {
+	fn parse_signed(&mut self) -> Result<Expr> {
 		todo!()
 	}
 
-	fn parse_float(&mut self) -> Result<Expr<'a>> {
+	fn parse_float(&mut self) -> Result<Expr> {
 		todo!()
 	}
 
-	fn parse_bool(&mut self) -> Result<Expr<'a>> {
+	fn parse_bool(&mut self) -> Result<Expr> {
 		todo!()
 	}
 
-	fn parse_map(&mut self) -> Result<Expr<'a>> {
+	fn parse_map(&mut self) -> Result<Expr> {
 		todo!()
 	}
 
-	fn parse_list(&mut self) -> Result<Expr<'a>> {
+	fn parse_list(&mut self) -> Result<Expr> {
 		todo!()
 	}
 
-	fn parse_custom_type<F>(&mut self, parser: F) -> Result<Expr<'a>>
-	where
-		F: FnOnce(&[u8]) -> Result<Value>,
-	{
+	fn parse_custom_type(&mut self) -> Result<(Vec<u8>, Vec<u8>)> {
 		let mut data = vec![];
 		let mut ident = vec![];
 		let mut in_value = false;
 
 		while let Some(next) = self.next() {
 			if next == b'=' {
-				if ident == [] {
+				if ident.is_empty() {
 					return Err(self.error(ErrorKind::EmptyIdent, "Identifier is empty"));
 				}
 
 				in_value = true;
 				continue;
 			} else if next == b';' {
-				if ident == [] {
+				if ident.is_empty() {
 					return Err(self.error(
 						ErrorKind::UnexpectedChar,
 						"Unexpected semicolon before expr start",
 					));
-				} else if !in_value || data == [] {
+				} else if !in_value || data.is_empty() {
 					return Err(self.error(ErrorKind::WrongValue, "Expected value in expr"));
 				}
 
@@ -164,15 +176,15 @@ impl<'a> Parser<'a> {
 			data.push(next);
 		}
 
-		Ok(Expr::Assign(&ident, parser(&data)?))
+		Ok((ident, data))
 	}
 
-	fn error(&self, kind: ErrorKind, message: &'a str) -> Error {
-		Error::new(kind, &format!("error at index {}: {}", self.index, message))
+	fn error(&self, kind: ErrorKind, message: &'src str) -> Error {
+		Error::new(kind, format!("error at index {}: {}", self.index, message))
 	}
 
-	fn to_utf8(&self, input: &[u8]) -> Result<&str> {
-		std::str::from_utf8(input).map_err(|_| self.error(ErrorKind::WrongValue, "Invalid utf8"))
+	fn to_utf8(&self, input: Vec<u8>) -> Result<String> {
+		String::from_utf8(input).map_err(|_| self.error(ErrorKind::WrongValue, "Invalid utf8"))
 	}
 }
 
