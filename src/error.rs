@@ -9,6 +9,8 @@ pub struct Error {
 	pub kind: ErrorKind,
 	/// Detailed information of the error.
 	pub message: String,
+	/// The index of the error in the input string.
+	pub index: usize,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -20,7 +22,11 @@ pub enum ErrorKind {
 
 impl Error {
 	/// Create a new error.
-	pub const fn new(kind: ErrorKind, message: String) -> Error {
-		Error { kind, message }
+	pub const fn new(kind: ErrorKind, message: String, index: usize) -> Error {
+		Error {
+			kind,
+			message,
+			index,
+		}
 	}
 }

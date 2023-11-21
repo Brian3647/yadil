@@ -1,15 +1,15 @@
 //! Parser function for literal types (string, unsigned, signed, float, bool)
 
-use super::{Expr, Parser, Value};
+use super::{Assign, Parser, Value};
 use crate::{ErrorKind, Result};
 
 macro_rules! create_assign_parser {
 	($name:ident, $ty:ident, $parser:ident) => {
 		#[inline]
 		#[doc(hidden)]
-		pub fn $name(&mut self) -> Result<Expr> {
+		pub fn $name(&mut self) -> Result<Assign> {
 			let (ident, input) = self.parse_assign()?;
-			Ok(Expr::Assign(ident, Value::$ty(self.$parser(input)?)))
+			Ok(Assign(ident, self.$parser(input)?))
 		}
 	};
 }
@@ -22,11 +22,11 @@ macro_rules! create_assign_parsers {
 
 impl Parser<'_> {
 	#[inline]
-	fn parse_string(&mut self, bytes: Vec<u8>) -> Result<String> {
-		self.to_utf8(bytes)
+	pub fn parse_string(&mut self, bytes: Vec<u8>) -> Result<Value> {
+		Ok(Value::String(self.to_utf8(bytes)?))
 	}
 
-	fn parse_unsigned(&mut self, bytes: Vec<u8>) -> Result<usize> {
+	pub fn parse_unsigned(&mut self, bytes: Vec<u8>) -> Result<Value> {
 		let mut total: usize = 0;
 
 		for byte in bytes.iter() {
@@ -37,10 +37,10 @@ impl Parser<'_> {
 			total += (byte - Self::ASCII_ZERO) as usize;
 		}
 
-		Ok(total)
+		Ok(Value::Unsigned(total))
 	}
 
-	fn parse_signed(&mut self, bytes: Vec<u8>) -> Result<isize> {
+	pub fn parse_signed(&mut self, bytes: Vec<u8>) -> Result<Value> {
 		let mut total: isize = 0;
 		let mut is_negative = false;
 		let mut in_number = false;
@@ -70,10 +70,10 @@ impl Parser<'_> {
 			total = -total;
 		}
 
-		Ok(total)
+		Ok(Value::Signed(total))
 	}
 
-	fn parse_float(&mut self, bytes: Vec<u8>) -> Result<f64> {
+	pub fn parse_float(&mut self, bytes: Vec<u8>) -> Result<Value> {
 		let mut total = 0.0;
 		let mut dec_count = 0;
 		let mut is_negative = false;
@@ -120,19 +120,19 @@ impl Parser<'_> {
 			total = -total;
 		}
 
-		Ok(total)
+		Ok(Value::Float(total))
 	}
 
 	#[inline]
-	fn parse_bool(&mut self, bytes: Vec<u8>) -> Result<bool> {
-		Ok(match &bytes[..] {
+	pub fn parse_bool(&mut self, bytes: Vec<u8>) -> Result<Value> {
+		Ok(Value::Bool(match &bytes[..] {
 			b"true" | b"t" => true,
 			b"false" | b"f" => false,
 			_ => return Err(self.error(ErrorKind::WrongValue, "Invalid bool value")),
-		})
+		}))
 	}
 
-	fn parse_assign(&mut self) -> Result<(Vec<u8>, Vec<u8>)> {
+	pub fn parse_assign(&mut self) -> Result<(Vec<u8>, Vec<u8>)> {
 		let mut data = vec![];
 		let mut ident = vec![];
 		let mut in_value = false;
@@ -168,6 +168,19 @@ impl Parser<'_> {
 		}
 
 		Ok((ident, data))
+	}
+
+	pub fn parse_assing_from(&mut self, ty: Vec<u8>) -> Result<Assign> {
+		match &ty[..] {
+			b"s" | b"str" => self.string_assign(),
+			b"u" | b"uint" => self.unsigned_assign(),
+			b"i" | b"sint" => self.signed_assign(),
+			b"f" | b"float" => self.float_assign(),
+			b"b" | b"bool" => self.bool_assign(),
+			b"l" | b"list" => todo!(), // self.parse_list_assign(),
+			b"m" | b"map" => todo!(),  // self.parse_map(),
+			_ => Err(self.error(ErrorKind::UnexpectedChar, "Invalid data type")),
+		}
 	}
 
 	create_assign_parsers!(

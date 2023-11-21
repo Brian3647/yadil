@@ -6,7 +6,6 @@
 Yep, it's exactly what it sounds.
 
 ```py
-Y.1;
 # This is a comment #
 # \# works #
 
@@ -15,7 +14,7 @@ uint @some_uint = 42; # unsigned integer #
 sint @i_hate_sints = -42; # signed integer #
 float @my_float = 3.14159; # floating point number #
 bool @is_it_ok = true; # boolean #
-list @lists_work = [1, 2, 3]; # lists #
+list.uint @lists_work = [1, 2, 3]; # lists #
 
 map @my_map: # maps #
     str @key "value";
@@ -61,8 +60,8 @@ In yadil, the only character that needs to be escaped for variable names is `=`,
 
 ## Roadmap
 
-- [ ] Rust parser
-- [ ] Integration with `serde`
-- [ ] Implementation in JavaScript (for both browser & nodejs/bun/deno)
-- [ ] Language server (which shouldn't be hard)
-- [ ] Extensions for ides & editors
+-   [ ] Rust parser
+-   [ ] Integration with `serde`
+-   [ ] Implementation in JavaScript (for both browser & nodejs/bun/deno)
+-   [ ] Language server (which shouldn't be hard)
+-   [ ] Extensions for ides & editors
