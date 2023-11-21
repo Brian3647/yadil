@@ -1,0 +1,1 @@
+s@my_string=Hello, world!;u@my_uint=42;# comment #i@my_sint=-42;f@my_float=3.14159;b@my_bool=t;

@@ -11,3 +11,10 @@ include = ["src/**.rs", "Cargo.toml", "README.md", "LICENSE"]
 authors = ["Brian3647 <victoris3647@gmail.com>"]
 
 [dependencies]
+
+[lib]
+path = "lib/lib.rs"
+
+[[bin]]
+name = "yadil"
+path = "src/main.rs"

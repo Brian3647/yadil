@@ -4,6 +4,7 @@
 pub type Result<T> = std::result::Result<T, Error>;
 
 /// An error, containing its kind and a message.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Error {
 	/// The kind of error.
 	pub kind: ErrorKind,

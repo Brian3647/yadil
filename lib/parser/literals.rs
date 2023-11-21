@@ -31,7 +31,10 @@ impl Parser<'_> {
 
 		for byte in bytes.iter() {
 			if !(Self::ASCII_ZERO..=Self::ASCII_NINE).contains(byte) {
-				return Err(self.error(ErrorKind::WrongValue, "Invalid unsigned value"));
+				return Err(self.error(
+					ErrorKind::WrongValue,
+					format!("Invalid unsigned value `{}`", *byte as char),
+				));
 			}
 
 			total += (byte - Self::ASCII_ZERO) as usize;
@@ -138,14 +141,14 @@ impl Parser<'_> {
 		let mut in_value = false;
 
 		while let Some(next) = self.next() {
-			if next == b'=' {
+			if self.maybe_escaped(next, b'=') {
 				if ident.is_empty() {
 					return Err(self.error(ErrorKind::EmptyIdent, "Identifier is empty"));
 				}
 
 				in_value = true;
 				continue;
-			} else if next == b';' {
+			} else if self.maybe_escaped(next, b';') {
 				if ident.is_empty() {
 					return Err(self.error(
 						ErrorKind::UnexpectedChar,
@@ -156,6 +159,8 @@ impl Parser<'_> {
 				}
 
 				break;
+			} else if Self::IGNORE_BYTES.contains(&next) && (!in_value || data.is_empty()) {
+				continue;
 			}
 
 			if in_value {
@@ -163,24 +168,13 @@ impl Parser<'_> {
 			} else {
 				ident.push(next);
 			}
-
-			data.push(next);
 		}
+
+		// I'm not quite sure where, but somewhere index is growing when it shouldn't.
+		// This fixes it.
+		self.index -= 1;
 
 		Ok((ident, data))
-	}
-
-	pub fn parse_assing_from(&mut self, ty: Vec<u8>) -> Result<Assign> {
-		match &ty[..] {
-			b"s" | b"str" => self.string_assign(),
-			b"u" | b"uint" => self.unsigned_assign(),
-			b"i" | b"sint" => self.signed_assign(),
-			b"f" | b"float" => self.float_assign(),
-			b"b" | b"bool" => self.bool_assign(),
-			b"l" | b"list" => todo!(), // self.parse_list_assign(),
-			b"m" | b"map" => todo!(),  // self.parse_map(),
-			_ => Err(self.error(ErrorKind::UnexpectedChar, "Invalid data type")),
-		}
 	}
 
 	create_assign_parsers!(

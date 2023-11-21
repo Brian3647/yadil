@@ -1,0 +1,17 @@
+{
+    "my_bool": Bool(
+        true,
+    ),
+    "my_float": Float(
+        3.1415900000000003,
+    ),
+    "my_string": String(
+        "Hello, world!",
+    ),
+    "my_uint": Unsigned(
+        6,
+    ),
+    "my_sint": Signed(
+        -6,
+    ),
+}

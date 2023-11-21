@@ -61,6 +61,8 @@ In yadil, the only character that needs to be escaped for variable names is `=`,
 ## Roadmap
 
 -   [ ] Rust parser
+    -   [x] Basic types
+    -   [ ] Lists & maps
 -   [ ] Integration with `serde`
 -   [ ] Implementation in JavaScript (for both browser & nodejs/bun/deno)
 -   [ ] Language server (which shouldn't be hard)
