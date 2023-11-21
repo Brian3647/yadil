@@ -57,6 +57,10 @@ and replace `map` and `end` for `m` and `e`:
 m@headers:s@My-Header="abc";s@hello="world";e;
 ```
 
+## Simpler escaping
+
+In yadil, the only character that needs to be escaped for variable names is `=`, as it means the next characters are the value of the variable. That means things like this are allowed: `str@Hello, world!""''="hi!"`.
+
 ## Roadmap
 
 - [ ] Rust parser
