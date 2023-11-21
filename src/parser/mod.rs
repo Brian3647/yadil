@@ -1,5 +1,8 @@
 //! Parser of the YADIL specification, in rust.
 
+mod complex;
+mod literals;
+
 use std::collections::HashMap;
 
 use crate::{Error, ErrorKind, Result};
@@ -10,10 +13,8 @@ pub enum Value {
 	String(String),
 	Unsigned(usize),
 	Signed(isize),
-	Byte(u8),
 	Float(f64),
 	Bool(bool),
-	Empty,
 	List(Vec<Expr>),
 	Map(HashMap<Value, Expr>),
 }
@@ -89,94 +90,15 @@ impl<'src> Parser<'src> {
 		}
 
 		match &data_type[..] {
-			b"s" | b"str" => self.parse_string(),
-			b"u" | b"uint" => self.parse_unsigned(),
-			b"i" | b"sint" => self.parse_signed(),
-			b"f" | b"float" => self.parse_float(),
-			b"b" | b"bool" => self.parse_bool(),
+			b"s" | b"str" => self.string_assign(),
+			b"u" | b"uint" => self.unsigned_assign(),
+			b"i" | b"sint" => self.signed_assign(),
+			b"f" | b"float" => self.float_assign(),
+			b"b" | b"bool" => self.bool_assign(),
 			b"l" | b"list" => self.parse_list(),
 			b"m" | b"map" => self.parse_map(),
 			_ => Err(self.error(ErrorKind::UnexpectedChar, "Invalid data type")),
 		}
-	}
-
-	fn parse_string(&mut self) -> Result<Expr> {
-		let (ident, input) = self.parse_custom_type()?;
-		let input = self.to_utf8(input)?;
-		Ok(Expr::Assign(ident, Value::String(input)))
-	}
-
-	fn parse_unsigned(&mut self) -> Result<Expr> {
-		let (ident, input) = self.parse_custom_type()?;
-		let mut total: usize = 0;
-
-		for byte in input.iter() {
-			if !(Self::ASCII_ZERO..=Self::ASCII_NINE).contains(byte) {
-				return Err(self.error(ErrorKind::WrongValue, "Invalid unsigned value"));
-			}
-
-			total += (byte - Self::ASCII_ZERO) as usize;
-		}
-
-		Ok(Expr::Assign(ident, Value::Unsigned(total)))
-	}
-
-	fn parse_signed(&mut self) -> Result<Expr> {
-		todo!()
-	}
-
-	fn parse_float(&mut self) -> Result<Expr> {
-		todo!()
-	}
-
-	fn parse_bool(&mut self) -> Result<Expr> {
-		todo!()
-	}
-
-	fn parse_map(&mut self) -> Result<Expr> {
-		todo!()
-	}
-
-	fn parse_list(&mut self) -> Result<Expr> {
-		todo!()
-	}
-
-	fn parse_custom_type(&mut self) -> Result<(Vec<u8>, Vec<u8>)> {
-		let mut data = vec![];
-		let mut ident = vec![];
-		let mut in_value = false;
-
-		while let Some(next) = self.next() {
-			if next == b'=' {
-				if ident.is_empty() {
-					return Err(self.error(ErrorKind::EmptyIdent, "Identifier is empty"));
-				}
-
-				in_value = true;
-				continue;
-			} else if next == b';' {
-				if ident.is_empty() {
-					return Err(self.error(
-						ErrorKind::UnexpectedChar,
-						"Unexpected semicolon before expr start",
-					));
-				} else if !in_value || data.is_empty() {
-					return Err(self.error(ErrorKind::WrongValue, "Expected value in expr"));
-				}
-
-				break;
-			}
-
-			if in_value {
-				data.push(next);
-			} else {
-				ident.push(next);
-			}
-
-			data.push(next);
-		}
-
-		Ok((ident, data))
 	}
 
 	fn error(&self, kind: ErrorKind, message: &'src str) -> Error {
@@ -185,6 +107,10 @@ impl<'src> Parser<'src> {
 
 	fn to_utf8(&self, input: Vec<u8>) -> Result<String> {
 		String::from_utf8(input).map_err(|_| self.error(ErrorKind::WrongValue, "Invalid utf8"))
+	}
+
+	fn peek(&self, amount: usize) -> Option<u8> {
+		self.input.get(self.index + amount).copied()
 	}
 }
 
