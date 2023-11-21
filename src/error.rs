@@ -13,20 +13,14 @@ pub struct Error<'a> {
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum ErrorKind {
-	InvalidVersion,
-	ParseError,
-	MessageTooShort,
+	UnexpectedChar,
+	EmptyIdent,
+	WrongValue,
 }
 
 impl<'a> Error<'a> {
 	/// Create a new error.
 	pub const fn new(kind: ErrorKind, message: &str) -> Error {
 		Error { kind, message }
-	}
-
-	// Templates
-
-	pub const fn version_not_supported() -> Error<'a> {
-		Error::new(ErrorKind::InvalidVersion, "Version not supported")
 	}
 }

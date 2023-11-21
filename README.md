@@ -16,7 +16,6 @@ sint @i_hate_sints = -42; # signed integer #
 float @my_float = 3.14159; # floating point number #
 bool @is_it_ok = true; # boolean #
 list @lists_work = [1, 2, 3]; # lists #
-bytes @weird_bytes = [1A, 2F, 03]; # bytes: equivalent to 0x1A, 0x2F, 03 #
 
 map @my_map: # maps #
     str @key "value";
@@ -43,7 +42,6 @@ You might (not) noticed, but `yadil` works perfectly without spaces, newlines, o
 | b                 | bool    | Boolean               |
 | l                 | list    | List                  |
 | m                 | map     | HashMap               |
-| x                 | bytes   | A byte list           |
 
 you can also use `t` for true and `f` for false:
 

@@ -4,17 +4,8 @@ use std::collections::HashMap;
 
 use crate::{Error, ErrorKind, Result};
 
-/// The start byte for a YADIL message (0x59, 0x2E).
-pub const START: &[u8; 2] = b"Y.";
-
-/// The latest version of the YADIL specification.
-pub const VERSION: u8 = 1;
-
-const ASCII_ZERO: u8 = 48;
-const ASCII_NINE: u8 = 58;
-
 /// Any valid value.
-#[derive(Debug, Copy, Clone, PartialEq, PartialOrd)]
+#[derive(Debug, Clone)]
 pub enum Value<'a> {
 	String(&'a str),
 	Unsigned(usize),
@@ -23,19 +14,19 @@ pub enum Value<'a> {
 	Float(f64),
 	Bool(bool),
 	Empty,
-}
-
-#[derive(Debug, Clone)]
-pub enum Expr<'a> {
-	Value(Value<'a>),
 	List(Vec<Expr<'a>>),
 	Map(HashMap<Value<'a>, Expr<'a>>),
 }
 
 #[derive(Debug, Clone)]
+pub enum Expr<'a> {
+	Assign(&'a [u8], Value<'a>),
+	Empty,
+}
+
+#[derive(Debug, Clone)]
 pub struct Message<'a> {
-	pub version: u8,
-	pub body: Expr<'a>,
+	pub body: Vec<Expr<'a>>,
 }
 
 pub struct Parser<'a> {
@@ -44,68 +35,144 @@ pub struct Parser<'a> {
 }
 
 impl<'a> Parser<'a> {
+	/// The start bytes of a data type.
+	///
+	/// Contains the following: s (string or sint), u (unsigned), i (signed),
+	/// f (float), b (byte), l (list), m (map), x (byte list)
+	pub const DATA_TYPE_START_BYTES: [u8; 8] = [b's', b'u', b'i', b'f', b'b', b'l', b'm', b'x'];
+
 	pub fn new(input: &[u8]) -> Parser {
 		Parser { input, index: 0 }
 	}
 
 	pub fn parse(&mut self) -> Result<Message<'a>> {
-		let (version, index) = Self::parse_version(self.input)?;
-		self.index = index as usize;
-
 		if self.next().is_none() {
 			return Ok(Message {
-				version,
-				body: Expr::Value(Value::Empty),
+				body: vec![Expr::Empty],
 			});
 		}
+
+		let mut body = vec![];
 
 		for byte in self {
 			match byte {
 				0 => break,                        // End of message (null byte)
-				b' ' | b'\n' | b'\r' | b'\t' => {} // Whitespaces & newlines are ignored
-				b';' => return Err(Error::new(ErrorKind::ParseError, "Unexpected semicolon")),
-				_ => todo!(), // TODO:
+				b' ' | b'\n' | b'\r' | b'\t' => {} // Initial whitespaces & newlines are ignored
+				b'[' => body.push(self.parse_list()?),
+				other if Self::DATA_TYPE_START_BYTES.contains(&other) => {
+					body.push(self.parse_expr(other)?)
+				}
+				_ => return Err(self.error(ErrorKind::UnexpectedChar, "Expected expression")),
 			}
 		}
 
-		let body = Expr::List(vec![Expr::Value(Value::Empty)]);
-		Ok(Message { version, body })
+		Ok(Message { body })
 	}
 
-	/// Parses the first 4 bytes of the message, which should be the
-	/// start bytes, the version and a semicolon if there's more data.
-	/// Using `&self` here fails in the borrow checker.
-	fn parse_version(input: &[u8]) -> Result<(u8, u8)> {
-		if input.len() <= 2 {
-			return Err(Error::new(
-				ErrorKind::MessageTooShort,
-				"Message is less than 3 bytes long",
-			));
-		} else if input[0..2] != *START {
-			return Err(Error::version_not_supported());
+	fn parse_expr(&mut self, start: u8) -> Result<Expr<'a>> {
+		let mut data_type = vec![start];
+
+		while let Some(next) = self.next() {
+			if next == b'@' {
+				break;
+			}
+
+			data_type.push(next);
 		}
 
-		let mut version = input[3];
+		match &data_type[..] {
+			b"s" | b"str" => self.parse_string(),
+			b"u" | b"uint" => self.parse_unsigned(),
+			b"i" | b"sint" => self.parse_signed(),
+			b"f" | b"float" => self.parse_float(),
+			b"b" | b"bool" => self.parse_bool(),
+			b"l" | b"list" => self.parse_list(),
+			b"m" | b"map" => self.parse_map(),
+			_ => Err(self.error(ErrorKind::UnexpectedChar, "Invalid data type")),
+		}
+	}
 
-		// The version apparently is a character converted to a byte (x + 48, if x ∈ [0, 9])
-		if version > ASCII_ZERO && version < ASCII_NINE {
-			version -= ASCII_ZERO;
-		} else {
-			return Err(Error::version_not_supported());
+	fn parse_string(&mut self) -> Result<Expr<'a>> {
+		self.parse_custom_type(|input| Ok(Value::String(self.to_utf8(input)?)))
+	}
+
+	fn parse_unsigned(&mut self) -> Result<Expr<'a>> {
+		self.parse_custom_type(|input| {
+			let str_input = self.to_utf8(input)?;
+			str_input
+				.parse::<usize>()
+				.map(Value::Unsigned)
+				.map_err(|_| self.error(ErrorKind::WrongValue, "Invalid unsigned integer"))
+		})
+	}
+
+	fn parse_signed(&mut self) -> Result<Expr<'a>> {
+		todo!()
+	}
+
+	fn parse_float(&mut self) -> Result<Expr<'a>> {
+		todo!()
+	}
+
+	fn parse_bool(&mut self) -> Result<Expr<'a>> {
+		todo!()
+	}
+
+	fn parse_map(&mut self) -> Result<Expr<'a>> {
+		todo!()
+	}
+
+	fn parse_list(&mut self) -> Result<Expr<'a>> {
+		todo!()
+	}
+
+	fn parse_custom_type<F>(&mut self, parser: F) -> Result<Expr<'a>>
+	where
+		F: FnOnce(&[u8]) -> Result<Value>,
+	{
+		let mut data = vec![];
+		let mut ident = vec![];
+		let mut in_value = false;
+
+		while let Some(next) = self.next() {
+			if next == b'=' {
+				if ident == [] {
+					return Err(self.error(ErrorKind::EmptyIdent, "Identifier is empty"));
+				}
+
+				in_value = true;
+				continue;
+			} else if next == b';' {
+				if ident == [] {
+					return Err(self.error(
+						ErrorKind::UnexpectedChar,
+						"Unexpected semicolon before expr start",
+					));
+				} else if !in_value || data == [] {
+					return Err(self.error(ErrorKind::WrongValue, "Expected value in expr"));
+				}
+
+				break;
+			}
+
+			if in_value {
+				data.push(next);
+			} else {
+				ident.push(next);
+			}
+
+			data.push(next);
 		}
 
-		let is_empty = input.len() == 3;
+		Ok(Expr::Assign(&ident, parser(&data)?))
+	}
 
-		if version > VERSION {
-			return Err(Error::version_not_supported());
-		} else if !is_empty && input[4] != b';' {
-			return Err(Error::new(
-				ErrorKind::ParseError,
-				"Version is not followed by a semicolon & message is not empty",
-			));
-		}
+	fn error(&self, kind: ErrorKind, message: &'a str) -> Error {
+		Error::new(kind, &format!("error at index {}: {}", self.index, message))
+	}
 
-		Ok((version, if is_empty { 3 } else { 4 }))
+	fn to_utf8(&self, input: &[u8]) -> Result<&str> {
+		std::str::from_utf8(input).map_err(|_| self.error(ErrorKind::WrongValue, "Invalid utf8"))
 	}
 }
 
@@ -113,12 +180,11 @@ impl Iterator for Parser<'_> {
 	type Item = u8;
 
 	fn next(&mut self) -> Option<Self::Item> {
-		if self.index > self.input.len() {
+		if self.index >= self.input.len() {
 			return None;
 		}
 
-		let byte = self.input[self.index];
 		self.index += 1;
-		Some(byte)
+		Some(self.input[self.index - 1])
 	}
 }
